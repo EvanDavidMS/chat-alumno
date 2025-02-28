@@ -4,7 +4,7 @@ from werkzeug.utils import secure_filename
 from flask_cors import CORS
 
 app = Flask(__name__)
-CORS(app, origins=["https://chat-alumno.onrender.com"])  # Aquí pones la URL de tu servidor de alumno
+CORS(app, origins=["https://chat-profesor.onrender.com/"])  # Aquí pones la URL de tu servidor de alumno
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16 MB
 
@@ -17,7 +17,7 @@ def allowed_file(filename):
 mensajes = []
 
 # URL pública del servidor Profesor (configurada mediante variable de entorno)
-TARGET_PROFESOR_URL = os.environ.get("TARGET_PROFESOR_URL", "https://chat-alumno.onrender.com")
+TARGET_ALUMNO_URL = os.environ.get("TARGET_ALUMNO_URL", "https://chat-profesor.onrender.com/")
 
 @app.route('/')
 def index():
@@ -210,7 +210,7 @@ def enviar():
     mensajes.append("Yo (Alumno): " + msg)
     # Enviar el mensaje al servidor Profesor
     try:
-        r = requests.post(TARGET_PROFESOR_URL + "/recibir", data={'mensaje': msg})
+        r = requests.post(TARGET_ALUMNO_URL + "/recibir", data={'mensaje': msg})
         print("Respuesta de Profesor:", r.text)
     except Exception as e:
         print("Error enviando mensaje al Profesor:", e)
@@ -243,7 +243,7 @@ def upload():
         with open(file_path, 'rb') as f:
             files = {'file': (filename, f, file.content_type)}
             try:
-                r = requests.post(TARGET_PROFESOR_URL + "/upload?forwarded=true", files=files)
+                r = requests.post(TARGET_ALUMNO_URL + "/upload?forwarded=true", files=files)
                 print("Respuesta upload en Profesor:", r.text)
             except Exception as e:
                 print("Error al reenviar archivo:", e)
