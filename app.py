@@ -1,8 +1,10 @@
 from flask import Flask, request, jsonify, send_from_directory, render_template_string
 import os, requests
 from werkzeug.utils import secure_filename
+from flask_cors import CORS
 
 app = Flask(__name__)
+CORS(app, origins=["https://chat-alumno.onrender.com"])  # Aquí pones la URL de tu servidor de alumno
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16 MB
 
@@ -15,7 +17,7 @@ def allowed_file(filename):
 mensajes = []
 
 # URL pública del servidor Profesor (configurada mediante variable de entorno)
-TARGET_PROFESOR_URL = os.environ.get("TARGET_PROFESOR_URL", "https://chat-alumno.onrender.com/")
+TARGET_PROFESOR_URL = os.environ.get("TARGET_PROFESOR_URL", "https://chat-profesor.onrender.com/")
 
 @app.route('/')
 def index():
