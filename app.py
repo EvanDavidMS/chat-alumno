@@ -117,14 +117,11 @@ def index():
              font-size: 20px;
              margin: 0 5px;
          }
-         .borrar-btn { background: #dc3545; }
-         .borrar-btn:hover { background: #c82333; }
       </style>
     </head>
     <body>
       <div class="chat-container">
         <h1>Chat - Alumno</h1>
-        <button class="borrar-btn" onclick="borrarConversacion()">Borrar Chat</button> <!-- Botón para borrar el chat -->
         <h2>Conectado con Profesor</h2>
         <div id="chat"></div>
         <div class="input-container">
@@ -175,12 +172,6 @@ def index():
                  }
              });
          }
-
-            function borrarConversacion(){ // Función que borra la conversación
-                 $.post("/borrar", function(){ // Llama al endpoint /borrar en el servidor
-                     $("#chat").html(''); // Vacía el contenido del chat en la interfaz
-                });
-
          
          function actualizarChat(){
              $.get("/mensajes", function(data){
