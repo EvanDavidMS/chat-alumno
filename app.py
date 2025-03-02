@@ -1,12 +1,19 @@
 from flask import Flask, request, jsonify, send_from_directory, render_template_string
-import os, requests
+import os, requests, logging, psutil
 from werkzeug.utils import secure_filename
 from flask_cors import CORS
 
 app = Flask(__name__)
-CORS(app, origins=["https://chat-profesor.onrender.com/"])  # Aquí pones la URL de tu servidor de alumno
+CORS(app, origins=["https://chat-profesor.onrender.com/"])  # URL del servidor de alumno
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16 MB
+
+# Configuración de logging: se guardarán los logs en 'app.log'
+logging.basicConfig(
+    filename='app.log',
+    level=logging.INFO,
+    format='%(asctime)s %(levelname)s %(name)s %(threadName)s : %(message)s'
+)
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'pdf', 'txt'}
 
@@ -215,12 +222,13 @@ def index():
 def enviar():
     msg = request.form.get('mensaje')
     mensajes.append("Yo (Alumno): " + msg)
+    logging.info("Mensaje enviado: %s", msg)
     # Enviar el mensaje al servidor Profesor
     try:
         r = requests.post(TARGET_ALUMNO_URL + "/recibir", data={'mensaje': msg})
-        print("Respuesta de Profesor:", r.text)
+        logging.info("Respuesta de Profesor: %s", r.text)
     except Exception as e:
-        print("Error enviando mensaje al Profesor:", e)
+        logging.error("Error enviando mensaje al Profesor: %s", e)
     return jsonify(ok=True)
 
 @app.route('/mensajes')
@@ -231,6 +239,7 @@ def get_mensajes():
 def recibir():
     msg = request.form.get('mensaje')
     mensajes.append("Profesor: " + msg)
+    logging.info("Mensaje recibido: %s", msg)
     return jsonify(ok=True)
 
 @app.route('/upload', methods=['POST'])
@@ -239,9 +248,11 @@ def upload():
     is_forwarded = request.args.get('forwarded', 'false').lower() == 'true'
     
     if 'file' not in request.files:
+        logging.error("No se proporcionó archivo en la solicitud")
         return jsonify({"error": "No file provided"}), 400
     file = request.files['file']
     if file.filename == '':
+        logging.error("No se seleccionó ningún archivo")
         return jsonify({"error": "No selected file"}), 400
     if allowed_file(file.filename):
         filename = secure_filename(file.filename)
@@ -249,6 +260,7 @@ def upload():
         file.save(file_path)
         file_link = "<a href='/uploads/{}' target='_blank'>{}</a>".format(filename, filename)
         mensajes.append("Yo (Alumno): Archivo: " + file_link)
+        logging.info("Archivo %s guardado y reenviado", filename)
         
         # Reenviar solo si no es una solicitud ya reenviada
         if not is_forwarded:
@@ -260,23 +272,50 @@ def upload():
                         files=files,
                         timeout=5  # Timeout para evitar bloqueos prolongados
                     )
-                    print("Respuesta upload en Profesor:", r.text)
+                    logging.info("Respuesta upload en Profesor: %s", r.text)
                 except Exception as e:
-                    print("Error al reenviar archivo:", e)
+                    logging.error("Error al reenviar archivo: %s", e)
         return jsonify(ok=True)
     else:
+        logging.error("Tipo de archivo no permitido: %s", file.filename)
         return jsonify({"error": "File type not allowed"}), 400
 
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
+# Nuevo endpoint para monitorear recursos del sistema
+@app.route('/monitor', methods=['GET'])
+def monitor():
+    metrics = {
+        "cpu_percent": psutil.cpu_percent(interval=1),
+        "memory": {
+            "total": psutil.virtual_memory().total,
+            "used": psutil.virtual_memory().used,
+            "percent": psutil.virtual_memory().percent
+        },
+        "disk": {
+            "total": psutil.disk_usage('/').total,
+            "used": psutil.disk_usage('/').used,
+            "percent": psutil.disk_usage('/').percent
+        }
+    }
+    logging.info("Métricas del sistema solicitadas")
+    return jsonify(metrics)
+
+# Nuevo endpoint para visualizar los logs
+@app.route('/logs', methods=['GET'])
+def get_logs():
+    try:
+        with open('app.log', 'r') as log_file:
+            logs = log_file.read()
+        return jsonify({"logs": logs})
+    except Exception as e:
+        logging.error("Error al leer logs: %s", e)
+        return jsonify({"error": "No se pudieron leer los logs", "details": str(e)}), 500
+
 if __name__ == '__main__':
     if not os.path.exists(app.config['UPLOAD_FOLDER']):
         os.makedirs(app.config['UPLOAD_FOLDER'])
     # Se usa el puerto definido en la variable de entorno PORT o 5000 por defecto
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
-
-
-
-#iniciar
